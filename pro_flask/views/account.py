@@ -6,10 +6,12 @@ from flask import request, Response
 from flask import jsonify
 # from ..db_helper import SQLHelper
 from flask.signals import _signals
+from flask import make_response
 from ..models import Users
 from ..models import Sentiment
 import json
 from ..models import db
+from ..utils.s_client import send_message
 
 account = Blueprint('account', __name__)
 
@@ -49,8 +51,9 @@ def support_jsonp(f):
 
 
 @account.route('/index/', methods=['GET', "POST"])
-@support_jsonp
+# @support_jsonp
 def home():
+
     if request.method == 'GET':
         ret = Sentiment.query.all()
         # 样本总数
@@ -62,8 +65,38 @@ def home():
         # 强烈谴责
         intens_num = Sentiment.query.filter_by(rank=3).count()
 
-        return jsonify({'status': 200, "data": [i.to_json() for i in ret], 'total_num': total_num,
+        sample_info = request.args.get('sample_info')
+        if sample_info:
+            machine_server = send_message(msg=sample_info, ip='127.0.0.1', port=9997)
+            if not machine_server:
+                machine_server = '语法分析错误, 请尝试使用其他中文语句重试...'
+            print(machine_server)
+
+            resp = jsonify({'machine_server': machine_server})
+            resp.headers['Access-Control-Allow-Origin'] = '*'
+
+            return resp
+
+        # response = make_response(jsonify({'status': 200, "data": [i.to_json() for i in ret], 'total_num': total_num,
+        #                                  'good_num': good_num, 'nature_num': nature_num, 'intens_num': intens_num}))
+
+        # response = make_response(jsonify({'status': 200}))
+        # response.headers['Access-Control-Allow-Origin'] = '*'
+        # response.headers['Access-Control-Allow-Methods'] = 'POST'
+        # response.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
+        #
+        # return Response
+
+        #  测试数据
+        total_num = 4000
+        good_num = 588
+        nature_num = 3118
+        intens_num = 294
+
+        resp = jsonify({'status': 200, "data": [i.to_json() for i in ret], 'total_num': total_num,
                         'good_num': good_num, 'nature_num': nature_num, 'intens_num': intens_num})
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        return resp
 
 
 @account.route('/login.html', methods=['GET', "POST"])
